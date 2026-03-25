@@ -177,7 +177,19 @@ class MinerUDiffusion(nn.Module):
 
         # Add visual conditioning if provided
         if visual_features is not None:
-            vis = self.vision_encoder(visual_features)  # [B, V, D]
+            if visual_features.dim() == 4:
+                # Raw images [B, C, H, W] -> encode with vision encoder
+                vis = self.vision_encoder(visual_features)
+            elif visual_features.dim() == 3:
+                # Pre-encoded features [B, V, D] -> project if needed
+                if visual_features.shape[-1] != self.config.hidden_dim:
+                    vis = self.vision_encoder(visual_features)
+                else:
+                    vis = visual_features
+            else:
+                raise ValueError(
+                    f"visual_features must be 3D or 4D, got {visual_features.dim()}D"
+                )
             # Prepend visual tokens (cross-attention via concatenation)
             h = torch.cat([vis, h], dim=1)  # [B, V+T, D]
             total_len = h.shape[1]
